@@ -1,0 +1,13 @@
+{
+    "name": "sidson-aidson/php-js-like-string",
+    "description": "php-js-like-string with support of multibyte string",
+    "type": "library",
+    "license": "ISC",
+    "authors": [
+        {
+            "name": "Moussa Ndour",
+            "email": "moussa_ndour@hotmail.fr"
+        }
+    ],
+    "require": {}
+}
