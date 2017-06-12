@@ -145,8 +145,6 @@ class JsString implements \ArrayAccess, \Iterator, Countable
         $char = mb_substr($string, 0, 1);
 
         $this->internalArrayRepresentation[$offset] = $char;
-
-        //TODO
     }
 
     private function checkOffset($offset)
@@ -224,6 +222,24 @@ class JsString implements \ArrayAccess, \Iterator, Countable
     {
         return $this->__toString();
     }
+
+    /********************** JS implementation *****************/
+
+
+    /**
+     * @param array ...$charCodes
+     */
+    public static function fromCharCode(...$charCodes)
+    {
+        $str = '';
+        foreach ($charCodes as $charCode)
+        {
+            $str .= mb_convert_encoding('&#' . intval($charCode) . ';', 'UTF-8', 'HTML-ENTITIES');
+        }
+
+        var_dump($str);
+    }
+
 
     /********************** \Iterator,\ArrayAccess *****************/
 

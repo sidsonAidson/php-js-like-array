@@ -7,11 +7,9 @@
  */
 
 require_once '../JsString.php';
-$source = '中文 español English हिन्दी العربية português বাংলা русский 日本語 ਪੰਜਾਬੀ 한국어 ';
+$source = '中文 español English हिन्दी العربية português বাংলা русский 日本語 ਪੰਜਾਬੀ 한국어';
 $str = new JsString($source);
-
-$str->add($str);
-echo count($str);
+echo $str;
 
 
 echo PHP_EOL;
