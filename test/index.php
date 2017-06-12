@@ -7,19 +7,14 @@
  */
 
 require_once '../JsString.php';
+$source = '中文 español English हिन्दी العربية português বাংলা русский 日本語 ਪੰਜਾਬੀ 한국어 ';
+$str = new JsString($source);
 
-$str = new JsString('中文 español English हिन्दी العربية português বাংলা русский 日本語 ਪੰਜਾਬੀ 한국어 ');
+$str->add($str);
+echo count($str);
 
-foreach ($str as $char)
-{
-    echo $char;
-}
-
-//'中文 español English हिन्दी العربية português বাংলা русский 日本語 ਪੰਜਾਬੀ 한국어 '
 
 echo PHP_EOL;
-echo $str[1];//文
-echo PHP_EOL;
-echo $str[60];//語
+
 
 

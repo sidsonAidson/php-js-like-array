@@ -8,11 +8,24 @@
  */
 //implements \Iterator,\ArrayAccess,\Serializable
 
-class JsString implements \ArrayAccess, \Iterator
+class JsString implements \ArrayAccess, \Iterator, Countable
 {
 
-    private $internalString;
+
+    /**
+     * @var array
+     */
+    private $internalArrayRepresentation;
+
+    /**
+     * @var int
+     */
     private $internalCursor = 0;
+
+    /**
+     * @var bool
+     */
+    private $useStrict = true;
 
     /**
      * JsString constructor.
@@ -26,8 +39,20 @@ class JsString implements \ArrayAccess, \Iterator
             throw new RuntimeException("mbstring module not enabled");
         }
 
-        $this->internalString = $this->checkAndGetVarString($data);
+        $string = $this->checkAndGetVarString($data);
+        $this->internalArrayRepresentation = $this->strToArray($string);
     }
+
+
+    /**
+     * @param $string
+     * @return array
+     */
+    private function strToArray($string)
+    {
+        return preg_split('//u', $string, null,PREG_SPLIT_NO_EMPTY);
+    }
+
 
 
     public function __get($name)
@@ -45,7 +70,7 @@ class JsString implements \ArrayAccess, \Iterator
      */
     public  function __toString ()
     {
-        return $this->internalString;
+        return implode("",$this->internalArrayRepresentation);
     }
 
     /**
@@ -71,15 +96,30 @@ class JsString implements \ArrayAccess, \Iterator
      */
     public function add($data)
     {
-        $this->internalString .= $this->checkAndGetVarString($data);
+        $willBeAdd = $this->checkAndGetVarString($data);
+
+        $strArray = $this->strToArray($willBeAdd);
+        $this->arrayMerge($this->internalArrayRepresentation, $strArray);
 
         return $this;
     }
 
     /**
+     * @param array $into
+     * @param array $source
+     */
+    private function arrayMerge(array &$into, $source)
+    {
+        for($i = 0; $i < count($source); $i++)
+        {
+            $into[] = $source[$i];
+        }
+    }
+
+    /**
      * @return int
      */
-    private function length()
+    public function length()
     {
         return mb_strlen($this->toString());
     }
@@ -88,7 +128,7 @@ class JsString implements \ArrayAccess, \Iterator
      * @param $offset
      * @return string
      */
-    private function get($offset)
+    public function get($offset)
     {
         $this->checkOffset($offset);
         return mb_substr($this->toString(), $offset, 1);
@@ -98,17 +138,46 @@ class JsString implements \ArrayAccess, \Iterator
      * @param $offset
      * @param mixed
      */
-    private function set($offset, $value)
+    public function set($offset, $value)
     {
         $this->checkOffset($offset);
         $string = $this->checkAndGetVarString($value);
+        $char = mb_substr($string, 0, 1);
+
+        $this->internalArrayRepresentation[$offset] = $char;
+
         //TODO
     }
 
     private function checkOffset($offset)
     {
-
+        $valid = $this->offsetExists($offset);
+        if(!$valid)
+        {
+            if($this->useStrict)
+            {
+                throw new OutOfBoundsException("Given offset not exist size = {$this->length()} , index = {$offset}");
+            }
+        }
     }
+
+    /**
+     * @return bool
+     */
+    public function isUseStrict()
+    {
+        return $this->useStrict;
+    }
+
+    /**
+     * @param bool $useStrict
+     */
+    public function setUseStrict($useStrict)
+    {
+        $this->useStrict = boolval($useStrict);
+    }
+
+
 
     /**
      * @return string
@@ -132,7 +201,14 @@ class JsString implements \ArrayAccess, \Iterator
             }
             else{
                 error:
+
+                if($this->useStrict)
+                {
                     throw new InvalidArgumentException("Expected string|null ".gettype($data)." given");
+                }
+                else{
+                    return '';
+                }
             }
 
         }
@@ -146,7 +222,7 @@ class JsString implements \ArrayAccess, \Iterator
      */
     public  function toString ()
     {
-        return $this->internalString;
+        return $this->__toString();
     }
 
     /********************** \Iterator,\ArrayAccess *****************/
@@ -268,5 +344,19 @@ class JsString implements \ArrayAccess, \Iterator
     public function rewind()
     {
         $this->internalCursor = 0;
+    }
+
+    /**
+     * Count elements of an object
+     * @link http://php.net/manual/en/countable.count.php
+     * @return int The custom count as an integer.
+     * </p>
+     * <p>
+     * The return value is cast to an integer.
+     * @since 5.1.0
+     */
+    public function count()
+    {
+        return $this->length();
     }
 }
