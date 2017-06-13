@@ -8,7 +8,7 @@
  */
 //implements \Iterator,\ArrayAccess,\Serializable
 
-class JsString implements \ArrayAccess, \Iterator, Countable
+class JString implements \ArrayAccess, \Iterator, Countable
 {
 
 
@@ -39,8 +39,26 @@ class JsString implements \ArrayAccess, \Iterator, Countable
             throw new RuntimeException("mbstring module not enabled");
         }
 
+        /* Set internal character encoding to UTF-8 */
+        mb_internal_encoding("UTF-8");
+        $this->polyfillMissingMultibyteStringFunction();
+
         $string = $this->checkAndGetVarString($data);
         $this->internalArrayRepresentation = $this->strToArray($string);
+    }
+
+    private function polyfillMissingMultibyteStringFunction()
+    {
+        if (!function_exists('mb_ord')) {
+            function mb_ord($char, $encoding = 'UTF-8') {
+                if ($encoding === 'UCS-4BE') {
+                    list(, $ord) = (strlen($char) === 4) ? @unpack('N', $char) : @unpack('n', $char);
+                    return $ord;
+                } else {
+                    return mb_ord(mb_convert_encoding($char, 'UCS-4BE', $encoding), 'UCS-4BE');
+                }
+            }
+        }
     }
 
 
@@ -74,24 +92,24 @@ class JsString implements \ArrayAccess, \Iterator, Countable
     }
 
     /**
-     * @return JsString
+     * @return JString
      */
     public function __clone()
     {
-        return new JsString($this);
+        return new JString($this);
     }
 
     /**
-     * @return JsString
+     * @return JString
      */
     public function copy()
     {
-        return new JsString($this->__toString());
+        return new JString($this->__toString());
     }
 
     /**
      * @param mixed
-     * @return JsString
+     * @return JString
      * @throws InvalidArgumentException
      */
     public function add($data)
@@ -121,7 +139,7 @@ class JsString implements \ArrayAccess, \Iterator, Countable
      */
     public function length()
     {
-        return mb_strlen($this->toString());
+        return count($this->internalArrayRepresentation);
     }
 
     /**
@@ -228,6 +246,7 @@ class JsString implements \ArrayAccess, \Iterator, Countable
 
     /**
      * @param array ...$charCodes
+     * @return JString
      */
     public static function fromCharCode(...$charCodes)
     {
@@ -237,7 +256,96 @@ class JsString implements \ArrayAccess, \Iterator, Countable
             $str .= mb_convert_encoding('&#' . intval($charCode) . ';', 'UTF-8', 'HTML-ENTITIES');
         }
 
-        var_dump($str);
+        return new JString($str);
+    }
+
+    /**
+     * @param int $index
+     * @return string
+     */
+    public function charAt($index = 0)
+    {
+        return $this->get($index);
+    }
+
+    /**
+     * @param int $index
+     * @return int
+     */
+    public function charCodeAt($index = 0)
+    {
+        return mb_ord($this->get($index));
+    }
+
+    /**
+     * @param JString|string|mixed $data
+     * @return JString
+     */
+    public function concat($data)
+    {
+        return (new JString())->add($this)->add($data);
+    }
+
+    public function startsWith($haystack, $needle)
+    {
+        $length = strlen($needle);
+        return (substr($haystack, 0, $length) === $needle);
+    }
+
+    /**
+     * @param JString|string|mixed $search
+     * @param int $position
+     * @return bool
+     */
+    function endsWith($search, $position = -1)
+    {
+        if($position < 0 || $position > $this->length())
+        {
+            $length = $this->length();
+        }
+        else
+        {
+            $length = $position;
+        }
+
+        if ($length == 0) {
+            return true;
+        }
+
+        $haystack = $this->checkAndGetVarString($search);
+
+        for($i = mb_strlen($haystack) - 1, $j = $length - 1; $i >= 0; $i--, $j--)
+        {
+            if(mb_substr($haystack, $i, 1) !== $this->get($j))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param JString|string|mixed $search
+     * @param int $position
+     * @return bool|int
+     */
+    public function includes($search, $position = 0)
+    {
+        $this->checkOffset($position);
+        return mb_strpos($this->toString(), $this->checkAndGetVarString($search), $position) !== FALSE;
+    }
+
+    /**
+     * @param $search
+     * @param int $start
+     * @return bool|int
+     */
+    public function indexOf($search, $start = 0)
+    {
+        $this->checkOffset($start);
+        $index = mb_strpos($this->toString(), $this->checkAndGetVarString($search), $start);
+        return $index !== FALSE ? $index : -1;
     }
 
 
