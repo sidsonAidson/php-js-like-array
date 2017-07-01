@@ -20,6 +20,8 @@
    echo $str[1];//文
    echo PHP_EOL;
    echo $str[60];//語
-   
+
+
+   "
    
 ```

@@ -11,7 +11,7 @@ $source = '中文 español English हिन्दी العربية português 
 $str = new JString($source);
 echo $str;
 
-
+$b = 'ਪੰਜਾਬੀ 한국어h';
 echo PHP_EOL;
-var_dump($str->indexOf('ਪੰਜਾਬੀ 한국어h')) ;
+var_dump($str->indexOf('ਪੰਜਾਬੀ 한국어h'), $b[0], $str[0]) ;
 

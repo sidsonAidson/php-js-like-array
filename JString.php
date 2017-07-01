@@ -241,7 +241,7 @@ class JString implements \ArrayAccess, \Iterator, Countable
         return $this->__toString();
     }
 
-    /********************** JS implementation *****************/
+    /******** JS implementation *******/
 
 
     /**
@@ -258,6 +258,30 @@ class JString implements \ArrayAccess, \Iterator, Countable
 
         return new JString($str);
     }
+
+    /**
+     * @param array ...$charCodes
+     * @return JString
+     */
+    public static function fromCodePoint(...$charCodes)
+    {
+        //TODO
+    }
+
+
+    /**
+     * @param string $name
+     * @return string string
+     */
+    public function anchor($name)
+    {
+        $jName = $this->checkAndGetVarString($name);
+        return sprintf("<a name='%s'>%s</a>", $jName, $this->toString());
+    }
+
+
+
+
 
     /**
      * @param int $index
@@ -283,7 +307,7 @@ class JString implements \ArrayAccess, \Iterator, Countable
      */
     public function concat($data)
     {
-        return (new JString())->add($this)->add($data);
+        return (new JString($this))->add($data);
     }
 
     public function startsWith($haystack, $needle)
@@ -348,8 +372,33 @@ class JString implements \ArrayAccess, \Iterator, Countable
         return $index !== FALSE ? $index : -1;
     }
 
+    /**
+     * @param $search
+     * @param int $start
+     * @return bool|int
+     */
+    public function lastIndexOf($search, $start = 0)
+    {
+        $this->checkOffset($start);
+        $index = mb_strrpos($this->toString(), $this->checkAndGetVarString($search), $start);
+        return $index !== FALSE ? $index : -1;
+    }
 
-    /********************** \Iterator,\ArrayAccess *****************/
+    /**
+     * @param string $url
+     * @return string string
+     */
+    public function link($url)
+    {
+        $jUrl = $this->checkAndGetVarString($url);
+        return sprintf("<a href='%s'>%s</a>", $jUrl, $this->toString());
+    }
+
+
+
+
+
+    /******** \Iterator,\ArrayAccess *******/
 
 
     /**
