@@ -13,5 +13,8 @@ echo $str;
 
 $b = 'ਪੰਜਾਬੀ 한국어h';
 echo PHP_EOL;
-var_dump($str->indexOf('ਪੰਜਾਬੀ 한국어h'), $b[0], $str[0]) ;
+//var_dump($str->compare(new JString($str))) ;
 
+$j = new JString('abc');
+$j = $j->repeat(1);
+echo $j;

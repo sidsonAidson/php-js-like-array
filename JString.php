@@ -6,7 +6,6 @@
  * Date: 12/06/2017
  * Time: 10:33
  */
-//implements \Iterator,\ArrayAccess,\Serializable
 
 class JString implements \ArrayAccess, \Iterator, Countable
 {
@@ -27,23 +26,41 @@ class JString implements \ArrayAccess, \Iterator, Countable
      */
     private $useStrict = true;
 
+    private $encoding;
+
     /**
      * JsString constructor.
      * @param mixed $data
-     * @throws InvalidArgumentException
+     * @param null $encoding
      */
-    function __construct($data = '')
+    function __construct($data = '', $encoding = null)
     {
         if(!extension_loaded('mbstring'))
         {
             throw new RuntimeException("mbstring module not enabled");
         }
 
-        /* Set internal character encoding to UTF-8 */
-        mb_internal_encoding("UTF-8");
+        /**
+         * Check is encoding is supported and set internal encoding to it
+         * else throw RuntimeException
+         */
+
+        if(!$encoding)
+        {
+            $this->encoding = mb_internal_encoding();
+        }
+        else if ('UTF-8' === $encoding || false !== @iconv($encoding, $encoding, ' '))
+        {
+            mb_internal_encoding($encoding);
+            $this->encoding = $encoding;
+        }
+        else{
+            throw new RuntimeException("character encoding not supported");
+        }
+
         $this->polyfillMissingMultibyteStringFunction();
 
-        $string = $this->checkAndGetVarString($data);
+        $string = self::checkAndGetString($data);
         $this->internalArrayRepresentation = $this->strToArray($string);
     }
 
@@ -99,28 +116,6 @@ class JString implements \ArrayAccess, \Iterator, Countable
         return new JString($this);
     }
 
-    /**
-     * @return JString
-     */
-    public function copy()
-    {
-        return new JString($this->__toString());
-    }
-
-    /**
-     * @param mixed
-     * @return JString
-     * @throws InvalidArgumentException
-     */
-    public function add($data)
-    {
-        $willBeAdd = $this->checkAndGetVarString($data);
-
-        $strArray = $this->strToArray($willBeAdd);
-        $this->arrayMerge($this->internalArrayRepresentation, $strArray);
-
-        return $this;
-    }
 
     /**
      * @param array $into
@@ -134,19 +129,12 @@ class JString implements \ArrayAccess, \Iterator, Countable
         }
     }
 
-    /**
-     * @return int
-     */
-    public function length()
-    {
-        return count($this->internalArrayRepresentation);
-    }
 
     /**
      * @param $offset
      * @return string
      */
-    public function get($offset)
+    private function get($offset)
     {
         $this->checkOffset($offset);
         return mb_substr($this->toString(), $offset, 1);
@@ -156,10 +144,10 @@ class JString implements \ArrayAccess, \Iterator, Countable
      * @param $offset
      * @param mixed
      */
-    public function set($offset, $value)
+    private function set($offset, $value)
     {
         $this->checkOffset($offset);
-        $string = $this->checkAndGetVarString($value);
+        $string = self::checkAndGetString($value);
         $char = mb_substr($string, 0, 1);
 
         $this->internalArrayRepresentation[$offset] = $char;
@@ -177,21 +165,6 @@ class JString implements \ArrayAccess, \Iterator, Countable
         }
     }
 
-    /**
-     * @return bool
-     */
-    public function isUseStrict()
-    {
-        return $this->useStrict;
-    }
-
-    /**
-     * @param bool $useStrict
-     */
-    public function setUseStrict($useStrict)
-    {
-        $this->useStrict = boolval($useStrict);
-    }
 
 
 
@@ -200,9 +173,22 @@ class JString implements \ArrayAccess, \Iterator, Countable
      * @param $data
      * @throws InvalidArgumentException
      */
-    private function checkAndGetVarString($data)
+    private static function checkAndGetString($data)
     {
-        if(!is_string($data))
+
+        if(is_string($data))
+        {
+            return $data;
+        }
+        else if(is_numeric($data))
+        {
+            return $data . '';
+        }
+        else if(empty($data))
+        {
+            return '';
+        }
+        else
         {
             if(is_object($data))
             {
@@ -217,20 +203,23 @@ class JString implements \ArrayAccess, \Iterator, Countable
             }
             else{
                 error:
-
-                if($this->useStrict)
-                {
-                    throw new InvalidArgumentException("Expected string|null ".gettype($data)." given");
-                }
-                else{
-                    return '';
-                }
+                    throw new InvalidArgumentException("Expected object(with __toString method) or string  or null or  ".__CLASS__." : ".gettype($data)." given");
             }
 
         }
-        else{
-            return $data;
-        }
+    }
+
+
+
+    /******** JS implementation *******/
+
+
+    /**
+     * @return int
+     */
+    public function length()
+    {
+        return count($this->internalArrayRepresentation);
     }
 
     /**
@@ -241,7 +230,28 @@ class JString implements \ArrayAccess, \Iterator, Countable
         return $this->__toString();
     }
 
-    /******** JS implementation *******/
+    /**
+     * @return JString
+     */
+    public function copy()
+    {
+        return new JString($this->__toString());
+    }
+
+    /**
+     * @param mixed
+     * @return JString
+     * @throws InvalidArgumentException
+     */
+    public function append($data)
+    {
+        $willBeAdd = self::checkAndGetString($data);
+
+        $strArray = $this->strToArray($willBeAdd);
+        $this->arrayMerge($this->internalArrayRepresentation, $strArray);
+
+        return $this;
+    }
 
 
     /**
@@ -259,14 +269,6 @@ class JString implements \ArrayAccess, \Iterator, Countable
         return new JString($str);
     }
 
-    /**
-     * @param array ...$charCodes
-     * @return JString
-     */
-    public static function fromCodePoint(...$charCodes)
-    {
-        //TODO
-    }
 
 
     /**
@@ -275,7 +277,7 @@ class JString implements \ArrayAccess, \Iterator, Countable
      */
     public function anchor($name)
     {
-        $jName = $this->checkAndGetVarString($name);
+        $jName = self::checkAndGetString($name);
         return sprintf("<a name='%s'>%s</a>", $jName, $this->toString());
     }
 
@@ -290,6 +292,12 @@ class JString implements \ArrayAccess, \Iterator, Countable
     public function charAt($index = 0)
     {
         return $this->get($index);
+    }
+
+
+    public function setCharAt($index = 0, $char)
+    {
+        $this->set($index , $char);
     }
 
     /**
@@ -307,13 +315,13 @@ class JString implements \ArrayAccess, \Iterator, Countable
      */
     public function concat($data)
     {
-        return (new JString($this))->add($data);
+        return (new JString($this))->append($data);
     }
 
     public function startsWith($haystack, $needle)
     {
-        $length = strlen($needle);
-        return (substr($haystack, 0, $length) === $needle);
+        $length = mb_strlen($needle);
+        return (mb_substr($haystack, 0, $length) === $needle);
     }
 
     /**
@@ -336,7 +344,7 @@ class JString implements \ArrayAccess, \Iterator, Countable
             return true;
         }
 
-        $haystack = $this->checkAndGetVarString($search);
+        $haystack = self::checkAndGetString($search);
 
         for($i = mb_strlen($haystack) - 1, $j = $length - 1; $i >= 0; $i--, $j--)
         {
@@ -357,7 +365,7 @@ class JString implements \ArrayAccess, \Iterator, Countable
     public function includes($search, $position = 0)
     {
         $this->checkOffset($position);
-        return mb_strpos($this->toString(), $this->checkAndGetVarString($search), $position) !== FALSE;
+        return mb_strpos($this->toString(), self::checkAndGetString($search), $position) !== FALSE;
     }
 
     /**
@@ -368,7 +376,7 @@ class JString implements \ArrayAccess, \Iterator, Countable
     public function indexOf($search, $start = 0)
     {
         $this->checkOffset($start);
-        $index = mb_strpos($this->toString(), $this->checkAndGetVarString($search), $start);
+        $index = mb_strpos($this->toString(), self::checkAndGetString($search), $start);
         return $index !== FALSE ? $index : -1;
     }
 
@@ -380,7 +388,7 @@ class JString implements \ArrayAccess, \Iterator, Countable
     public function lastIndexOf($search, $start = 0)
     {
         $this->checkOffset($start);
-        $index = mb_strrpos($this->toString(), $this->checkAndGetVarString($search), $start);
+        $index = mb_strrpos($this->toString(), self::checkAndGetString($search), $start);
         return $index !== FALSE ? $index : -1;
     }
 
@@ -390,8 +398,91 @@ class JString implements \ArrayAccess, \Iterator, Countable
      */
     public function link($url)
     {
-        $jUrl = $this->checkAndGetVarString($url);
-        return sprintf("<a href='%s'>%s</a>", $jUrl, $this->toString());
+        $url = self::checkAndGetString($url);
+        return sprintf("<a href='%s'>%s</a>", $url, $this->toString());
+    }
+
+
+    /**
+     * @param string|JString|object $compareString
+     * @return int
+     */
+    public function compare($compareString)
+    {
+        $compareString = new JString(self::checkAndGetString($compareString));
+        for($i = 0; $i < $this->length() && $i < $compareString->length(); $i++)
+        {
+            if($this->charCodeAt($i) !== $compareString->charCodeAt($i))
+            {
+                return $this->charCodeAt($i) < $compareString->charCodeAt($i) ? -1 : 1;
+            }
+
+        }
+
+        return $this->length() < $compareString->length() ? -1 : $this->length() == $compareString->length() ? 0 : 1;
+    }
+
+    /**
+     * @param string|JString|object $compareString
+     * @return bool
+     */
+    public function isEqual($compareString)
+    {
+        return $this->compare($compareString) === 0;
+    }
+
+    /**
+     * @return JString
+     */
+    public function capitalize($compareString)
+    {
+
+    }
+
+
+    /**
+     * @param JString $compareString
+     * @return array
+     */
+    public function match($pattern)
+    {
+        $pattern = self::checkAndGetString($pattern);
+        $match = array();
+
+        $_ = mb_ereg ($pattern , $this->toString(), $match );
+
+        return $match;
+    }
+
+    /**
+     * @param JString $pattern
+     * @return bool
+     */
+    public function test($pattern)
+    {
+        $pattern = self::checkAndGetString($pattern);
+
+        return mb_ereg_match ($pattern , $this->toString());
+    }
+
+    /**
+     * @param $count
+     * @return JString
+     */
+    public function repeat($count = 0)
+    {
+        if((int)$count < 0 || ! is_numeric($count) || !is_finite($count))
+        {
+            throw new RangeException("count would be positive number");
+        }
+
+        $repeat = new JString();
+        for($i = 0; $i < (int) $count; $i++)
+        {
+            $repeat->append($this);
+        }
+
+        return $repeat;
     }
 
 
@@ -533,3 +624,4 @@ class JString implements \ArrayAccess, \Iterator, Countable
         return $this->length();
     }
 }
+
